@@ -22,7 +22,16 @@ export default function Ranking() {
 
   useEffect(() => {
     if (!userProfile?.group_id) return
-    getGroupRanking(userProfile.group_id).then(setRawRanking).catch(console.error)
+
+    function fetchData() {
+      getGroupRanking(userProfile.group_id).then(setRawRanking).catch(console.error)
+    }
+
+    fetchData()
+
+    const onVisible = () => { if (document.visibilityState === 'visible') fetchData() }
+    document.addEventListener('visibilitychange', onVisible)
+    return () => document.removeEventListener('visibilitychange', onVisible)
   }, [userProfile])
 
   const activeType = RANK_TYPES.find(t => t.id === rankType)
@@ -32,7 +41,10 @@ export default function Ranking() {
 
   return (
     <div className="screen ranking-screen">
-      <h1>Ranking</h1>
+      <div className="page-header">
+        <h1>Ranking</h1>
+        <button className="refresh-btn" onClick={() => userProfile?.group_id && getGroupRanking(userProfile.group_id).then(setRawRanking).catch(console.error)}>↻</button>
+      </div>
       <p className="ranking-sub">Today · your friend group</p>
 
       <div className="rank-type-tabs">

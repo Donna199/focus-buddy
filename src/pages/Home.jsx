@@ -20,16 +20,24 @@ export default function Home() {
   useEffect(() => {
     if (!userProfile?.id || !userProfile?.group_id) return
 
-    Promise.all([
-      getUserTodayStats(userProfile.id, userProfile.group_id),
-      getGroupRanking(userProfile.group_id),
-      getGroupLogs(userProfile.group_id),
-    ]).then(([s, r, logs]) => {
-      setStats(s)
-      const sorted = [...r].sort((a, b) => b.totalPoints - a.totalPoints)
-      setRanking(sorted)
-      setMyLogs(logs.filter(l => l.userId === userProfile.id).slice(0, 3))
-    }).catch(console.error)
+    function fetchData() {
+      Promise.all([
+        getUserTodayStats(userProfile.id, userProfile.group_id),
+        getGroupRanking(userProfile.group_id),
+        getGroupLogs(userProfile.group_id),
+      ]).then(([s, r, logs]) => {
+        setStats(s)
+        const sorted = [...r].sort((a, b) => b.totalPoints - a.totalPoints)
+        setRanking(sorted)
+        setMyLogs(logs.filter(l => l.userId === userProfile.id).slice(0, 3))
+      }).catch(console.error)
+    }
+
+    fetchData()
+
+    const onVisible = () => { if (document.visibilityState === 'visible') fetchData() }
+    document.addEventListener('visibilitychange', onVisible)
+    return () => document.removeEventListener('visibilitychange', onVisible)
   }, [userProfile])
 
   const myRank = ranking.findIndex(r => r.id === userProfile?.id) + 1
@@ -37,8 +45,10 @@ export default function Home() {
   return (
     <div className="screen home-screen">
       <div className="home-header">
-        <p className="eyebrow">Today</p>
-        <h1>Hey, {userProfile?.name?.split(' ')[0] || 'there'} 👋</h1>
+        <div>
+          <p className="eyebrow">Today</p>
+          <h1>Hey, {userProfile?.name?.split(' ')[0] || 'there'} 👋</h1>
+        </div>
       </div>
 
       <div className="card points-hero">

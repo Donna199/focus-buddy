@@ -21,7 +21,16 @@ export default function Feed() {
 
   useEffect(() => {
     if (!userProfile?.group_id) return
-    getGroupLogs(userProfile.group_id).then(setLogs).catch(console.error)
+
+    function fetchData() {
+      getGroupLogs(userProfile.group_id).then(setLogs).catch(console.error)
+    }
+
+    fetchData()
+
+    const onVisible = () => { if (document.visibilityState === 'visible') fetchData() }
+    document.addEventListener('visibilitychange', onVisible)
+    return () => document.removeEventListener('visibilitychange', onVisible)
   }, [userProfile])
 
   // Re-fetch when returning from Log screen so new entry is visible
@@ -47,7 +56,10 @@ export default function Feed() {
 
   return (
     <div className="screen feed-screen">
-      <h1>Feed</h1>
+      <div className="page-header">
+        <h1>Feed</h1>
+        <button className="refresh-btn" onClick={() => userProfile?.group_id && getGroupLogs(userProfile.group_id).then(setLogs).catch(console.error)}>↻</button>
+      </div>
 
       <div className="feed-filters">
         {FILTERS.map(f => (
