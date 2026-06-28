@@ -31,6 +31,10 @@ export default function Onboarding() {
 
   // ── Sign up ───────────────────────────────────────────────────────────────
   async function handleSignUp() {
+    if (!supabase) {
+      setError('App is not connected to the database. Add VITE_SUPABASE_URL and VITE_SUPABASE_PUBLISHABLE_KEY in your Vercel environment variables, then redeploy.')
+      return
+    }
     clearError()
     setLoading(true)
     try {
@@ -62,6 +66,10 @@ export default function Onboarding() {
 
   // ── Sign in ───────────────────────────────────────────────────────────────
   async function handleSignIn() {
+    if (!supabase) {
+      setError('App is not connected to the database. Add VITE_SUPABASE_URL and VITE_SUPABASE_PUBLISHABLE_KEY in your Vercel environment variables, then redeploy.')
+      return
+    }
     clearError()
     setLoading(true)
     try {
