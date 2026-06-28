@@ -15,8 +15,5 @@ export default function AuthGuard({ children }) {
 
   if (!session) return <Navigate to="/welcome" replace />
 
-  // Logged in but hasn't joined a group yet — finish onboarding first
-  if (userProfile && !userProfile.group_id) return <Navigate to="/welcome" replace />
-
   return children
 }

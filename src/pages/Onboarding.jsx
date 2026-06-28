@@ -7,29 +7,22 @@ export default function Onboarding() {
   const navigate = useNavigate()
   const { session, userProfile, profileLoaded, refreshProfile } = useAuth()
 
-  const [step, setStep] = useState('welcome') // welcome|signup|signin|confirm|group|rules
+  const [step, setStep] = useState('welcome') // welcome|signup|signin|confirm|rules
   const [name, setName] = useState('')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
-  const [code, setCode] = useState('')
-  const [groupCode, setGroupCode] = useState('') // shown after creating a group
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
 
-  // Redirect if already fully onboarded; jump to group step if signed in but groupless
   useEffect(() => {
     if (session === undefined) return
-    if (session && userProfile?.group_id) {
+    if (session && userProfile) {
       navigate('/', { replace: true })
-    } else if (session && userProfile && !userProfile.group_id) {
-      setName(userProfile.name || '')
-      setStep('group')
     } else if (session && profileLoaded && !userProfile) {
-      // Signed in but no profile row — account was partially created before RLS fix
       setError('Account setup incomplete. Please create a new account.')
       supabase.auth.signOut()
     }
-  }, [session, userProfile, profileLoaded, navigate, step])
+  }, [session, userProfile, profileLoaded, navigate])
 
   function clearError() { setError('') }
 
@@ -48,10 +41,16 @@ export default function Onboarding() {
       })
       if (authErr) throw new Error(authErr.message)
 
+      const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'
+      const suffix = Array.from({ length: 4 }, () =>
+        chars[Math.floor(Math.random() * chars.length)]
+      ).join('')
+
       const { error: profileErr } = await supabase.from('users').insert({
         id:            data.user.id,
         name:          name.trim(),
         avatar_letter: name.trim()[0]?.toUpperCase() ?? '?',
+        friend_code:   'FOCUS-' + suffix,
       })
       if (profileErr) throw new Error(profileErr.message)
 
@@ -59,7 +58,7 @@ export default function Onboarding() {
         setStep('confirm')
       } else {
         await refreshProfile()
-        setStep('group')
+        setStep('rules')
       }
     } catch (err) {
       setError(err.message)
@@ -87,89 +86,10 @@ export default function Onboarding() {
       setError(err.message)
       setLoading(false)
     }
-    // Don't clear loading on success — component navigates away
-  }
-
-  // ── Join existing group ───────────────────────────────────────────────────
-  async function handleJoinGroup() {
-    clearError()
-    setLoading(true)
-    try {
-      const uid = session?.user?.id
-      if (!uid) throw new Error('Session expired. Please sign in again.')
-
-      const { data: group, error: groupErr } = await supabase
-        .from('groups')
-        .select('id')
-        .eq('invite_code', code.trim().toUpperCase())
-        .maybeSingle()
-
-      if (groupErr) throw new Error(groupErr.message)
-      if (!group) throw new Error('No group found with that code. Double-check and try again.')
-
-      const { data: updated, error: updateErr } = await supabase
-        .from('users')
-        .update({ group_id: group.id })
-        .eq('id', uid)
-        .select('id')
-        .maybeSingle()
-
-      if (updateErr) throw new Error(updateErr.message)
-      if (!updated) throw new Error('Could not join group — try signing out and back in.')
-
-      await refreshProfile()
-      setStep('rules')
-    } catch (err) {
-      setError(err.message)
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  // ── Create new group ──────────────────────────────────────────────────────
-  async function handleCreateGroup() {
-    clearError()
-    setLoading(true)
-    try {
-      const uid = session?.user?.id
-      if (!uid) throw new Error('Session expired. Please sign in again.')
-
-      const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'
-      const suffix = Array.from({ length: 4 }, () =>
-        chars[Math.floor(Math.random() * chars.length)]
-      ).join('')
-      const inviteCode = 'SQUAD-' + suffix
-
-      const { data: group, error: groupErr } = await supabase
-        .from('groups')
-        .insert({ name: `${name || 'My'}'s Squad`, invite_code: inviteCode })
-        .select('id, invite_code')
-        .single()
-      if (groupErr) throw new Error(groupErr.message)
-
-      const { data: updated, error: updateErr } = await supabase
-        .from('users')
-        .update({ group_id: group.id })
-        .eq('id', uid)
-        .select('id')
-        .maybeSingle()
-
-      if (updateErr) throw new Error(updateErr.message)
-      if (!updated) throw new Error('Could not update your profile — try signing out and back in.')
-
-      await refreshProfile()
-      setGroupCode(group.invite_code)
-      setStep('rules')
-    } catch (err) {
-      setError(err.message)
-    } finally {
-      setLoading(false)
-    }
   }
 
   // ── Render ────────────────────────────────────────────────────────────────
 
-  // Block render until we know auth state (avoids welcome flash for logged-in users)
   if (session === undefined) {
     return (
       <div className="screen" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
@@ -312,62 +232,11 @@ export default function Onboarding() {
     )
   }
 
-  if (step === 'group') {
-    return (
-      <div className="screen onboarding-screen">
-        <p className="eyebrow">Step 2 — Group</p>
-        <h1>Join your group</h1>
-        <p className="onboarding-sub">Enter the invite code a friend shared with you.</p>
-
-        <div className="auth-form">
-          <div className="field">
-            <label className="field-label">Invite code</label>
-            <input
-              type="text"
-              placeholder="e.g. SQUAD-AB3C"
-              value={code}
-              onChange={e => setCode(e.target.value.toUpperCase())}
-              autoFocus
-            />
-          </div>
-
-          {error && <p className="auth-error">{error}</p>}
-
-          <button
-            className="btn btn-primary"
-            disabled={loading || !code.trim()}
-            onClick={handleJoinGroup}
-          >
-            {loading ? 'Joining…' : 'Join group'}
-          </button>
-
-          <div className="divider" />
-
-          <button
-            className="btn btn-secondary"
-            disabled={loading}
-            onClick={handleCreateGroup}
-          >
-            {loading ? 'Creating…' : 'Create a new group instead'}
-          </button>
-        </div>
-      </div>
-    )
-  }
-
   // rules (final step)
   return (
     <div className="screen onboarding-screen">
-      <p className="eyebrow">Step 3 — Rules</p>
-      <h1>How points work</h1>
-
-      {groupCode && (
-        <div className="new-group-code">
-          <p className="new-group-code-label">Your group's invite code</p>
-          <p className="new-group-code-value">{groupCode}</p>
-          <p className="new-group-code-hint">Share this with friends so they can join.</p>
-        </div>
-      )}
+      <p className="eyebrow">How it works</p>
+      <h1>Compete with friends</h1>
 
       <div className="rules-list">
         <div className="rule-item good">
@@ -394,7 +263,7 @@ export default function Onboarding() {
       </div>
 
       <p className="onboarding-sub" style={{ marginBottom: 20 }}>
-        Friends see your logs and points. Rankings update live. It's a game, not homework.
+        Add friends from the Profile tab using your personal code. Rankings update live.
       </p>
       <button className="btn btn-primary" onClick={() => navigate('/', { replace: true })}>
         Start competing

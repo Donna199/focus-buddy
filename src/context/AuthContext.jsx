@@ -33,9 +33,20 @@ export function AuthProvider({ children }) {
   async function loadProfile(userId) {
     const { data } = await supabase
       .from('users')
-      .select('*, groups(id, name, invite_code)')
+      .select('*')
       .eq('id', userId)
       .maybeSingle()
+
+    if (data && !data.friend_code) {
+      const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'
+      const suffix = Array.from({ length: 4 }, () =>
+        chars[Math.floor(Math.random() * chars.length)]
+      ).join('')
+      const friendCode = 'FOCUS-' + suffix
+      await supabase.from('users').update({ friend_code: friendCode }).eq('id', userId)
+      data.friend_code = friendCode
+    }
+
     setUserProfile(data ?? null)
     setProfileLoaded(true)
   }

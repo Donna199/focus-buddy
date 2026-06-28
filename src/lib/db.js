@@ -17,7 +17,6 @@ function computeStats(rows) {
   }
 }
 
-// Convert snake_case DB row → camelCase shape that components expect
 function normalizeLog(row) {
   return {
     id:              row.id,
@@ -35,7 +34,15 @@ function normalizeLog(row) {
   }
 }
 
-// ── Logs ─────────────────────────────────────────────────────────────────────
+async function getFriendIds(userId) {
+  const { data } = await supabase
+    .from('friendships')
+    .select('user_id, friend_id')
+    .or(`user_id.eq.${userId},friend_id.eq.${userId}`)
+  return (data ?? []).map(f => f.user_id === userId ? f.friend_id : f.user_id)
+}
+
+// ── Photos ────────────────────────────────────────────────────────────────────
 
 export async function uploadActivityPhoto(file, userId) {
   const ext  = file.name.split('.').pop() || 'jpg'
@@ -54,15 +61,16 @@ export async function uploadActivityPhoto(file, userId) {
   return data.publicUrl
 }
 
+// ── Logs ─────────────────────────────────────────────────────────────────────
+
 export async function insertLog({
-  userId, groupId, category, activityName,
+  userId, category, activityName,
   durationMinutes, points, caption, trigger, photoUrl,
 }) {
   const { data, error } = await supabase
     .from('logs')
     .insert({
       user_id:          userId,
-      group_id:         groupId,
       category,
       activity_name:    activityName,
       duration_minutes: durationMinutes ?? null,
@@ -78,12 +86,15 @@ export async function insertLog({
   return data
 }
 
-// All logs for a group, newest first, with embedded user name/avatar
-export async function getGroupLogs(groupId) {
+// Feed: logs from user + all friends, newest first
+export async function getFeedLogs(userId) {
+  const friendIds = await getFriendIds(userId)
+  const allIds = [userId, ...friendIds]
+
   const { data, error } = await supabase
     .from('logs')
     .select('*, users(name, avatar_letter)')
-    .eq('group_id', groupId)
+    .in('user_id', allIds)
     .order('created_at', { ascending: false })
 
   if (error) throw error
@@ -92,24 +103,22 @@ export async function getGroupLogs(groupId) {
 
 // ── Stats ─────────────────────────────────────────────────────────────────────
 
-export async function getUserTodayStats(userId, groupId) {
+export async function getUserTodayStats(userId) {
   const { data, error } = await supabase
     .from('logs')
     .select('points, category, duration_minutes')
     .eq('user_id', userId)
-    .eq('group_id', groupId)
     .gte('created_at', todayStart())
 
   if (error) throw error
   return computeStats(data ?? [])
 }
 
-export async function getTodayBonusPoints(userId, groupId) {
+export async function getTodayBonusPoints(userId) {
   const { data, error } = await supabase
     .from('logs')
     .select('points')
     .eq('user_id', userId)
-    .eq('group_id', groupId)
     .eq('category', 'bonus')
     .gte('created_at', todayStart())
 
@@ -119,16 +128,15 @@ export async function getTodayBonusPoints(userId, groupId) {
 
 // ── Ranking ───────────────────────────────────────────────────────────────────
 
-export async function getGroupRanking(groupId) {
+export async function getFriendRanking(userId) {
+  const friendIds = await getFriendIds(userId)
+  const allIds = [userId, ...friendIds]
+
   const [{ data: members, error: mErr }, { data: logs, error: lErr }] = await Promise.all([
-    supabase
-      .from('users')
-      .select('id, name, avatar_letter')
-      .eq('group_id', groupId),
-    supabase
-      .from('logs')
+    supabase.from('users').select('id, name, avatar_letter').in('id', allIds),
+    supabase.from('logs')
       .select('user_id, points, category, duration_minutes')
-      .eq('group_id', groupId)
+      .in('user_id', allIds)
       .gte('created_at', todayStart()),
   ])
 
@@ -146,6 +154,31 @@ export async function getGroupRanking(groupId) {
     avatar: u.avatar_letter,
     ...computeStats(byUser[u.id] ?? []),
   }))
+}
+
+// ── Friends ───────────────────────────────────────────────────────────────────
+
+export async function addFriend(userId, friendCode) {
+  const { data: friend, error: findErr } = await supabase
+    .from('users')
+    .select('id, name')
+    .eq('friend_code', friendCode.trim().toUpperCase())
+    .maybeSingle()
+
+  if (findErr) throw findErr
+  if (!friend) throw new Error('No user found with that code.')
+  if (friend.id === userId) throw new Error("That's your own code!")
+
+  const { error: insertErr } = await supabase
+    .from('friendships')
+    .insert({ user_id: userId, friend_id: friend.id })
+
+  if (insertErr) {
+    if (insertErr.code === '23505') throw new Error('Already friends with this person!')
+    throw insertErr
+  }
+
+  return friend
 }
 
 // ── User / profile ────────────────────────────────────────────────────────────

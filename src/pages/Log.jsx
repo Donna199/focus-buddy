@@ -37,8 +37,8 @@ export default function Log() {
   const [bonusPointsToday, setBonusPointsToday] = useState(0)
 
   useEffect(() => {
-    if (!userProfile?.id || !userProfile?.group_id) return
-    getTodayBonusPoints(userProfile.id, userProfile.group_id)
+    if (!userProfile?.id) return
+    getTodayBonusPoints(userProfile.id)
       .then(setBonusPointsToday)
       .catch(() => setBonusPointsToday(0))
   }, [userProfile])
@@ -109,7 +109,7 @@ export default function Log() {
   }
 
   async function handleSubmit() {
-    if (!canSubmit || !userProfile?.id || !userProfile?.group_id) return
+    if (!canSubmit || !userProfile?.id) return
 
     const finalPoints = bonusCapped ? Math.max(0, bonusRemaining) : previewPoints
     setSubmittedPoints(finalPoints)
@@ -123,7 +123,6 @@ export default function Log() {
 
       await insertLog({
         userId:          userProfile.id,
-        groupId:         userProfile.group_id,
         category,
         activityName:    selectedActivity.name,
         durationMinutes: category === 'bonus' ? null : Number(duration),

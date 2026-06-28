@@ -1,7 +1,7 @@
 import { Link } from 'react-router-dom'
 import { useState, useEffect } from 'react'
 import { useAuth } from '../context/AuthContext'
-import { getUserTodayStats, getGroupRanking, getGroupLogs } from '../lib/db'
+import { getUserTodayStats, getFriendRanking, getFeedLogs } from '../lib/db'
 import LogCard from '../components/LogCard'
 
 function formatMinutes(mins) {
@@ -18,13 +18,13 @@ export default function Home() {
   const [myLogs, setMyLogs]   = useState([])
 
   useEffect(() => {
-    if (!userProfile?.id || !userProfile?.group_id) return
+    if (!userProfile?.id) return
 
     function fetchData() {
       Promise.all([
-        getUserTodayStats(userProfile.id, userProfile.group_id),
-        getGroupRanking(userProfile.group_id),
-        getGroupLogs(userProfile.group_id),
+        getUserTodayStats(userProfile.id),
+        getFriendRanking(userProfile.id),
+        getFeedLogs(userProfile.id),
       ]).then(([s, r, logs]) => {
         setStats(s)
         const sorted = [...r].sort((a, b) => b.totalPoints - a.totalPoints)

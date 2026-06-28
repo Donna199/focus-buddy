@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useAuth } from '../context/AuthContext'
-import { getGroupRanking } from '../lib/db'
+import { getFriendRanking } from '../lib/db'
 
 const RANK_TYPES = [
   { id: 'totalPoints',  label: 'Points',         format: v => `${v > 0 ? '+' : ''}${v}` },
@@ -21,10 +21,10 @@ export default function Ranking() {
   const [rankType, setRankType]     = useState('totalPoints')
 
   useEffect(() => {
-    if (!userProfile?.group_id) return
+    if (!userProfile?.id) return
 
     function fetchData() {
-      getGroupRanking(userProfile.group_id).then(setRawRanking).catch(console.error)
+      getFriendRanking(userProfile.id).then(setRawRanking).catch(console.error)
     }
 
     fetchData()
@@ -43,7 +43,7 @@ export default function Ranking() {
     <div className="screen ranking-screen">
       <div className="page-header">
         <h1>Ranking</h1>
-        <button className="refresh-btn" onClick={() => userProfile?.group_id && getGroupRanking(userProfile.group_id).then(setRawRanking).catch(console.error)}>↻</button>
+        <button className="refresh-btn" onClick={() => userProfile?.id && getFriendRanking(userProfile.id).then(setRawRanking).catch(console.error)}>↻</button>
       </div>
       <p className="ranking-sub">Today · your friend group</p>
 

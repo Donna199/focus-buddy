@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
-import { getUserTodayStats, getTotalLogCount } from '../lib/db'
+import { getUserTodayStats, getTotalLogCount, addFriend } from '../lib/db'
 import { supabase } from '../lib/supabase'
 
 function formatMinutes(mins) {
@@ -14,18 +14,19 @@ function formatMinutes(mins) {
 export default function Profile() {
   const navigate = useNavigate()
   const { userProfile, session } = useAuth()
-  const [stats, setStats]       = useState({ totalPoints: 0, focusMinutes: 0 })
+  const [stats, setStats]         = useState({ totalPoints: 0, focusMinutes: 0 })
   const [totalLogs, setTotalLogs] = useState(0)
-  const [copied, setCopied]     = useState(false)
-  const [friendCode, setFriendCode] = useState('')
-  const [addedMsg, setAddedMsg] = useState('')
+  const [copied, setCopied]       = useState(false)
+  const [friendInput, setFriendInput] = useState('')
+  const [friendLoading, setFriendLoading] = useState(false)
+  const [friendMsg, setFriendMsg] = useState({ text: '', ok: true })
 
-  const groupInviteCode = userProfile?.groups?.invite_code ?? '—'
+  const myCode = userProfile?.friend_code ?? '—'
 
   useEffect(() => {
-    if (!userProfile?.id || !userProfile?.group_id) return
+    if (!userProfile?.id) return
     Promise.all([
-      getUserTodayStats(userProfile.id, userProfile.group_id),
+      getUserTodayStats(userProfile.id),
       getTotalLogCount(userProfile.id),
     ]).then(([s, count]) => {
       setStats(s)
@@ -34,13 +35,13 @@ export default function Profile() {
   }, [userProfile])
 
   function copyCode() {
-    navigator.clipboard?.writeText(groupInviteCode)
+    navigator.clipboard?.writeText(myCode)
     setCopied(true)
     setTimeout(() => setCopied(false), 1800)
   }
 
   function shareCode() {
-    const text = `Add me on Focus Buddy! My group code is ${groupInviteCode}`
+    const text = `Add me on Focus Buddy! My code is ${myCode}`
     if (navigator.share) {
       navigator.share({ text }).catch(() => {})
     } else {
@@ -48,12 +49,19 @@ export default function Profile() {
     }
   }
 
-  function addFriend() {
-    const code = friendCode.trim().toUpperCase()
-    if (!code) return
-    setAddedMsg(`Request sent to ${code}. (Connects for real once the backend is live.)`)
-    setFriendCode('')
-    setTimeout(() => setAddedMsg(''), 3500)
+  async function handleAddFriend() {
+    if (!friendInput.trim() || !userProfile?.id) return
+    setFriendLoading(true)
+    setFriendMsg({ text: '', ok: true })
+    try {
+      const friend = await addFriend(userProfile.id, friendInput)
+      setFriendMsg({ text: `${friend.name} added! You'll see each other's activity now.`, ok: true })
+      setFriendInput('')
+    } catch (err) {
+      setFriendMsg({ text: err.message, ok: false })
+    } finally {
+      setFriendLoading(false)
+    }
   }
 
   async function handleSignOut() {
@@ -66,7 +74,6 @@ export default function Profile() {
       <div className="profile-header">
         <span className="avatar-lg">{userProfile?.avatar_letter ?? '?'}</span>
         <h1>{userProfile?.name ?? ''}</h1>
-        <p className="profile-group">{userProfile?.groups?.name ?? 'No group'}</p>
       </div>
 
       <div className="profile-stats">
@@ -85,11 +92,11 @@ export default function Profile() {
       </div>
 
       <div className="friends-section">
-        <h2 className="friends-heading">Invite friends</h2>
+        <h2 className="friends-heading">Friends</h2>
 
         <div className="friend-code-card">
-          <p className="friend-code-label">Your group's code</p>
-          <p className="friend-code-value">{groupInviteCode}</p>
+          <p className="friend-code-label">Your friend code</p>
+          <p className="friend-code-value">{myCode}</p>
           <div className="friend-code-actions">
             <button className="btn btn-secondary friend-code-btn" onClick={copyCode}>
               {copied ? 'Copied ✓' : 'Copy'}
@@ -103,37 +110,30 @@ export default function Profile() {
         <div className="add-friend-row">
           <input
             type="text"
-            placeholder="Enter a friend's group code"
-            value={friendCode}
-            onChange={e => setFriendCode(e.target.value.toUpperCase())}
+            placeholder="Enter a friend's code (FOCUS-XXXX)"
+            value={friendInput}
+            onChange={e => setFriendInput(e.target.value.toUpperCase())}
+            onKeyDown={e => e.key === 'Enter' && handleAddFriend()}
           />
           <button
             className="btn btn-primary add-friend-btn"
-            disabled={!friendCode.trim()}
-            onClick={addFriend}
+            disabled={friendLoading || !friendInput.trim()}
+            onClick={handleAddFriend}
           >
-            Add
+            {friendLoading ? '…' : 'Add'}
           </button>
         </div>
-        {addedMsg && <p className="add-friend-msg">{addedMsg}</p>}
+        {friendMsg.text && (
+          <p className="add-friend-msg" style={{ color: friendMsg.ok ? 'var(--good)' : 'var(--bad)' }}>
+            {friendMsg.text}
+          </p>
+        )}
       </div>
 
       <div className="settings-list">
         <button className="settings-row">
-          <span>Edit name & avatar</span>
-          <span className="settings-arrow">→</span>
-        </button>
-        <button className="settings-row">
           <span>Email</span>
           <span className="settings-arrow" style={{ fontSize: 12, opacity: 0.6 }}>{session?.user?.email ?? ''}</span>
-        </button>
-        <button className="settings-row">
-          <span>My activity history</span>
-          <span className="settings-arrow">→</span>
-        </button>
-        <button className="settings-row">
-          <span>Privacy</span>
-          <span className="settings-arrow">→</span>
         </button>
         <button className="settings-row danger" onClick={handleSignOut}>
           <span>Sign out</span>
