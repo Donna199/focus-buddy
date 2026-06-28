@@ -50,12 +50,14 @@ create policy "Groups are readable by all"          on groups for select using (
 create policy "Authenticated users can create groups" on groups
   for insert with check (auth.uid() is not null);
 
--- Users: anyone can read; each user can only create their own profile
+-- Users: anyone can read or create a profile; only the owner can update
+-- Insert is open because signUp() may not have an active session yet when
+-- the profile row is created (email confirmation flow).
 drop policy if exists "Users can read all users"    on users;
 drop policy if exists "Anyone can insert a user"    on users;
 create policy "User profiles are readable by all"   on users for select using (true);
 create policy "Users can create their own profile"  on users
-  for insert with check (auth.uid() = id);
+  for insert with check (true);
 create policy "Users can update their own profile"  on users
   for update using (auth.uid() = id);
 
