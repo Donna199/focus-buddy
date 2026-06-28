@@ -95,23 +95,27 @@ export default function Onboarding() {
     clearError()
     setLoading(true)
     try {
+      const uid = session?.user?.id
+      if (!uid) throw new Error('Session expired. Please sign in again.')
+
       const { data: group, error: groupErr } = await supabase
         .from('groups')
         .select('id')
         .eq('invite_code', code.trim().toUpperCase())
         .maybeSingle()
 
-      if (groupErr || !group) throw new Error('No group found with that code. Double-check and try again.')
+      if (groupErr) throw new Error(groupErr.message)
+      if (!group) throw new Error('No group found with that code. Double-check and try again.')
 
-      const { data: { session: currentSession } } = await supabase.auth.getSession()
-      const uid = currentSession?.user?.id
-      if (!uid) throw new Error('Session expired. Please sign in again.')
-
-      const { error: updateErr } = await supabase
+      const { data: updated, error: updateErr } = await supabase
         .from('users')
         .update({ group_id: group.id })
         .eq('id', uid)
+        .select('id')
+        .maybeSingle()
+
       if (updateErr) throw new Error(updateErr.message)
+      if (!updated) throw new Error('Could not join group — try signing out and back in.')
 
       await refreshProfile()
       setStep('rules')
@@ -127,6 +131,9 @@ export default function Onboarding() {
     clearError()
     setLoading(true)
     try {
+      const uid = session?.user?.id
+      if (!uid) throw new Error('Session expired. Please sign in again.')
+
       const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'
       const suffix = Array.from({ length: 4 }, () =>
         chars[Math.floor(Math.random() * chars.length)]
@@ -140,15 +147,15 @@ export default function Onboarding() {
         .single()
       if (groupErr) throw new Error(groupErr.message)
 
-      const { data: { session: currentSession } } = await supabase.auth.getSession()
-      const uid = currentSession?.user?.id
-      if (!uid) throw new Error('Session expired. Please sign in again.')
-
-      const { error: updateErr } = await supabase
+      const { data: updated, error: updateErr } = await supabase
         .from('users')
         .update({ group_id: group.id })
         .eq('id', uid)
+        .select('id')
+        .maybeSingle()
+
       if (updateErr) throw new Error(updateErr.message)
+      if (!updated) throw new Error('Could not update your profile — try signing out and back in.')
 
       await refreshProfile()
       setGroupCode(group.invite_code)
