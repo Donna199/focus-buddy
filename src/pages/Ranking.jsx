@@ -1,11 +1,11 @@
 import { useState, useEffect } from 'react'
-import { getRanking, CURRENT_USER } from '../data/mockData'
-import { getAllLogs, subscribe } from '../data/logStore'
+import { useAuth } from '../context/AuthContext'
+import { getGroupRanking } from '../lib/db'
 
 const RANK_TYPES = [
-  { id: 'totalPoints', label: 'Points', format: (v) => `${v > 0 ? '+' : ''}${v}` },
-  { id: 'focusMinutes', label: 'Focus time', format: (v) => formatMinutes(v) },
-  { id: 'badMinutes', label: 'Least bad time', format: (v) => formatMinutes(v), ascending: true },
+  { id: 'totalPoints',  label: 'Points',         format: v => `${v > 0 ? '+' : ''}${v}` },
+  { id: 'focusMinutes', label: 'Focus time',      format: v => formatMinutes(v) },
+  { id: 'badMinutes',   label: 'Least bad time',  format: v => formatMinutes(v), ascending: true },
 ]
 
 function formatMinutes(mins) {
@@ -16,13 +16,17 @@ function formatMinutes(mins) {
 }
 
 export default function Ranking() {
-  const [rankType, setRankType] = useState('totalPoints')
-  const [, forceUpdate] = useState(0)
-  useEffect(() => subscribe(() => forceUpdate((n) => n + 1)), [])
-  const activeType = RANK_TYPES.find((t) => t.id === rankType)
+  const { userProfile } = useAuth()
+  const [rawRanking, setRawRanking] = useState([])
+  const [rankType, setRankType]     = useState('totalPoints')
 
-  let ranked = getRanking(getAllLogs())
-  ranked = [...ranked].sort((a, b) =>
+  useEffect(() => {
+    if (!userProfile?.group_id) return
+    getGroupRanking(userProfile.group_id).then(setRawRanking).catch(console.error)
+  }, [userProfile])
+
+  const activeType = RANK_TYPES.find(t => t.id === rankType)
+  const ranked = [...rawRanking].sort((a, b) =>
     activeType.ascending ? a[rankType] - b[rankType] : b[rankType] - a[rankType]
   )
 
@@ -32,7 +36,7 @@ export default function Ranking() {
       <p className="ranking-sub">Today · your friend group</p>
 
       <div className="rank-type-tabs">
-        {RANK_TYPES.map((t) => (
+        {RANK_TYPES.map(t => (
           <button
             key={t.id}
             className={`rank-tab ${rankType === t.id ? 'active' : ''}`}
@@ -45,7 +49,7 @@ export default function Ranking() {
 
       <div className="rank-list">
         {ranked.map((user, index) => {
-          const isMe = user.id === CURRENT_USER.id
+          const isMe    = user.id === userProfile?.id
           const isPodium = index < 3
           return (
             <div key={user.id} className={`rank-row ${isMe ? 'is-me' : ''} ${isPodium ? 'podium' : ''}`}>
@@ -61,6 +65,9 @@ export default function Ranking() {
             </div>
           )
         })}
+        {ranked.length === 0 && (
+          <p className="empty-state">No activity yet today. Be first to log something.</p>
+        )}
       </div>
     </div>
   )

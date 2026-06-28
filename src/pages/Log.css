@@ -192,3 +192,163 @@
   opacity: 0.4;
   cursor: not-allowed;
 }
+
+/* ── Input-mode picker (Time it live / Enter manually) ───────────────────── */
+.input-mode-picker {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  margin-bottom: 20px;
+}
+
+.mode-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 5px;
+  padding: 14px 10px;
+  border-radius: var(--radius-md);
+  background: var(--bg-elevated);
+  border: 1.5px solid var(--border);
+  color: var(--text-secondary);
+  font-family: var(--font-display);
+  font-size: 13px;
+  font-weight: 600;
+  transition: border-color 0.12s, background 0.12s, color 0.12s;
+}
+
+.mode-btn.active {
+  border-color: var(--text-primary);
+  background: var(--bg-card);
+  color: var(--text-primary);
+}
+
+.mode-btn-icon {
+  font-size: 20px;
+  line-height: 1;
+}
+
+/* ── Timer setup ─────────────────────────────────────────────────────────── */
+.timer-setup {
+  background: var(--bg-card);
+  border: 1px solid var(--border-soft);
+  border-radius: var(--radius-lg);
+  padding: 20px;
+  margin-bottom: 20px;
+}
+
+.timer-setup-label {
+  font-family: var(--font-display);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text-tertiary);
+  margin-bottom: 14px;
+}
+
+.timer-presets {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.timer-preset-btn {
+  padding: 12px 8px;
+  border-radius: var(--radius-sm);
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  color: var(--text-primary);
+  font-family: var(--font-display);
+  font-weight: 600;
+  font-size: 14px;
+  transition: border-color 0.12s, background 0.12s;
+}
+
+.timer-preset-btn:hover:not(:disabled) {
+  border-color: var(--text-secondary);
+}
+
+.timer-preset-btn:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+
+.timer-custom-row {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 8px;
+  align-items: start;
+}
+
+.timer-start-btn {
+  height: 44px; /* match input height */
+  white-space: nowrap;
+  padding-left: 16px;
+  padding-right: 16px;
+}
+
+/* ── Timer running ───────────────────────────────────────────────────────── */
+.timer-running {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 22px;
+  margin-bottom: 20px;
+}
+
+.timer-circle-wrap {
+  position: relative;
+  width: 180px;
+  height: 180px;
+}
+
+.timer-overlay {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+}
+
+.timer-time {
+  font-family: var(--font-display);
+  font-size: 40px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  color: var(--text-primary);
+  line-height: 1;
+}
+
+.timer-pts {
+  font-family: var(--font-display);
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.timer-paused-badge {
+  font-family: var(--font-display);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-tertiary);
+  margin-top: 2px;
+}
+
+.timer-controls {
+  display: flex;
+  gap: 10px;
+  width: 100%;
+}
+
+.timer-controls .btn-secondary {
+  flex: 1;
+}
+
+.timer-end-btn {
+  color: var(--text-tertiary);
+}

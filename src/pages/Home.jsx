@@ -1,7 +1,7 @@
 import { Link } from 'react-router-dom'
 import { useState, useEffect } from 'react'
-import { CURRENT_USER, getTodayStats, getRanking } from '../data/mockData'
-import { getAllLogs, subscribe } from '../data/logStore'
+import { useAuth } from '../context/AuthContext'
+import { getUserTodayStats, getGroupRanking, getGroupLogs } from '../lib/db'
 import LogCard from '../components/LogCard'
 
 function formatMinutes(mins) {
@@ -12,20 +12,33 @@ function formatMinutes(mins) {
 }
 
 export default function Home() {
-  const [, forceUpdate] = useState(0)
-  useEffect(() => subscribe(() => forceUpdate((n) => n + 1)), [])
+  const { userProfile } = useAuth()
+  const [stats, setStats]     = useState({ totalPoints: 0, focusMinutes: 0, badMinutes: 0 })
+  const [ranking, setRanking] = useState([])
+  const [myLogs, setMyLogs]   = useState([])
 
-  const logs = getAllLogs()
-  const stats = getTodayStats(CURRENT_USER.id, logs)
-  const ranking = getRanking(logs)
-  const myRank = ranking.findIndex((r) => r.id === CURRENT_USER.id) + 1
-  const myLogs = logs.filter((l) => l.userId === CURRENT_USER.id).slice(0, 3)
+  useEffect(() => {
+    if (!userProfile?.id || !userProfile?.group_id) return
+
+    Promise.all([
+      getUserTodayStats(userProfile.id, userProfile.group_id),
+      getGroupRanking(userProfile.group_id),
+      getGroupLogs(userProfile.group_id),
+    ]).then(([s, r, logs]) => {
+      setStats(s)
+      const sorted = [...r].sort((a, b) => b.totalPoints - a.totalPoints)
+      setRanking(sorted)
+      setMyLogs(logs.filter(l => l.userId === userProfile.id).slice(0, 3))
+    }).catch(console.error)
+  }, [userProfile])
+
+  const myRank = ranking.findIndex(r => r.id === userProfile?.id) + 1
 
   return (
     <div className="screen home-screen">
       <div className="home-header">
         <p className="eyebrow">Today</p>
-        <h1>Hey, {CURRENT_USER.name === 'You' ? 'there' : CURRENT_USER.name} 👋</h1>
+        <h1>Hey, {userProfile?.name?.split(' ')[0] || 'there'} 👋</h1>
       </div>
 
       <div className="card points-hero">
@@ -34,7 +47,9 @@ export default function Home() {
 
         <div className="points-hero-sub">
           <div className="hero-sub-item">
-            <span className="hero-sub-value">#{myRank}<span className="hero-sub-suffix">/{ranking.length}</span></span>
+            <span className="hero-sub-value">
+              #{myRank || '—'}<span className="hero-sub-suffix">/{ranking.length || '—'}</span>
+            </span>
             <span className="hero-sub-label">Rank</span>
           </div>
           <div className="hero-sub-divider" />
@@ -62,7 +77,7 @@ export default function Home() {
         {myLogs.length === 0 ? (
           <p className="empty-state">No logs yet today. Log your first activity above.</p>
         ) : (
-          myLogs.map((log) => <LogCard key={log.id} log={log} showUser={false} />)
+          myLogs.map(log => <LogCard key={log.id} log={log} showUser={false} />)
         )}
       </div>
     </div>

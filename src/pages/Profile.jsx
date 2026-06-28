@@ -1,5 +1,8 @@
-import { useState } from 'react'
-import { MOCK_LOGS, CURRENT_USER, getTodayStats } from '../data/mockData'
+import { useState, useEffect } from 'react'
+import { useNavigate } from 'react-router-dom'
+import { useAuth } from '../context/AuthContext'
+import { getUserTodayStats, getTotalLogCount } from '../lib/db'
+import { supabase } from '../lib/supabase'
 
 function formatMinutes(mins) {
   const h = Math.floor(mins / 60)
@@ -8,27 +11,36 @@ function formatMinutes(mins) {
   return `${h}h ${m}m`
 }
 
-// Your shareable friend code. In demo mode it's fixed; with the backend it
-// would be generated per user and stored on the users table.
-const MY_FRIEND_CODE = 'FOCUS-7K2M'
-
 export default function Profile() {
-  const stats = getTodayStats(CURRENT_USER.id)
-  const myLogs = MOCK_LOGS.filter((l) => l.userId === CURRENT_USER.id)
-  const totalLogs = myLogs.length
-
-  const [copied, setCopied] = useState(false)
+  const navigate = useNavigate()
+  const { userProfile, session } = useAuth()
+  const [stats, setStats]       = useState({ totalPoints: 0, focusMinutes: 0 })
+  const [totalLogs, setTotalLogs] = useState(0)
+  const [copied, setCopied]     = useState(false)
   const [friendCode, setFriendCode] = useState('')
   const [addedMsg, setAddedMsg] = useState('')
 
+  const groupInviteCode = userProfile?.groups?.invite_code ?? '—'
+
+  useEffect(() => {
+    if (!userProfile?.id || !userProfile?.group_id) return
+    Promise.all([
+      getUserTodayStats(userProfile.id, userProfile.group_id),
+      getTotalLogCount(userProfile.id),
+    ]).then(([s, count]) => {
+      setStats(s)
+      setTotalLogs(count)
+    }).catch(console.error)
+  }, [userProfile])
+
   function copyCode() {
-    navigator.clipboard?.writeText(MY_FRIEND_CODE)
+    navigator.clipboard?.writeText(groupInviteCode)
     setCopied(true)
     setTimeout(() => setCopied(false), 1800)
   }
 
   function shareCode() {
-    const text = `Add me on Focus Buddy! My code is ${MY_FRIEND_CODE}`
+    const text = `Add me on Focus Buddy! My group code is ${groupInviteCode}`
     if (navigator.share) {
       navigator.share({ text }).catch(() => {})
     } else {
@@ -39,19 +51,22 @@ export default function Profile() {
   function addFriend() {
     const code = friendCode.trim().toUpperCase()
     if (!code) return
-    // Demo only — no real connection yet. With the backend, this looks up the
-    // user by code and creates a friendship / adds them to your group.
     setAddedMsg(`Request sent to ${code}. (Connects for real once the backend is live.)`)
     setFriendCode('')
     setTimeout(() => setAddedMsg(''), 3500)
   }
 
+  async function handleSignOut() {
+    await supabase.auth.signOut()
+    navigate('/welcome', { replace: true })
+  }
+
   return (
     <div className="screen profile-screen">
       <div className="profile-header">
-        <span className="avatar-lg">{CURRENT_USER.avatar}</span>
-        <h1>{CURRENT_USER.name}</h1>
-        <p className="profile-group">The Squad · 5 members</p>
+        <span className="avatar-lg">{userProfile?.avatar_letter ?? '?'}</span>
+        <h1>{userProfile?.name ?? ''}</h1>
+        <p className="profile-group">{userProfile?.groups?.name ?? 'No group'}</p>
       </div>
 
       <div className="profile-stats">
@@ -70,11 +85,11 @@ export default function Profile() {
       </div>
 
       <div className="friends-section">
-        <h2 className="friends-heading">Add friends</h2>
+        <h2 className="friends-heading">Invite friends</h2>
 
         <div className="friend-code-card">
-          <p className="friend-code-label">Your code</p>
-          <p className="friend-code-value">{MY_FRIEND_CODE}</p>
+          <p className="friend-code-label">Your group's code</p>
+          <p className="friend-code-value">{groupInviteCode}</p>
           <div className="friend-code-actions">
             <button className="btn btn-secondary friend-code-btn" onClick={copyCode}>
               {copied ? 'Copied ✓' : 'Copy'}
@@ -88,11 +103,15 @@ export default function Profile() {
         <div className="add-friend-row">
           <input
             type="text"
-            placeholder="Enter a friend's code"
+            placeholder="Enter a friend's group code"
             value={friendCode}
-            onChange={(e) => setFriendCode(e.target.value.toUpperCase())}
+            onChange={e => setFriendCode(e.target.value.toUpperCase())}
           />
-          <button className="btn btn-primary add-friend-btn" disabled={!friendCode.trim()} onClick={addFriend}>
+          <button
+            className="btn btn-primary add-friend-btn"
+            disabled={!friendCode.trim()}
+            onClick={addFriend}
+          >
             Add
           </button>
         </div>
@@ -105,8 +124,8 @@ export default function Profile() {
           <span className="settings-arrow">→</span>
         </button>
         <button className="settings-row">
-          <span>Invite code</span>
-          <span className="settings-arrow">SQUAD-2026</span>
+          <span>Email</span>
+          <span className="settings-arrow" style={{ fontSize: 12, opacity: 0.6 }}>{session?.user?.email ?? ''}</span>
         </button>
         <button className="settings-row">
           <span>My activity history</span>
@@ -116,15 +135,11 @@ export default function Profile() {
           <span>Privacy</span>
           <span className="settings-arrow">→</span>
         </button>
-        <button className="settings-row danger">
-          <span>Leave group</span>
+        <button className="settings-row danger" onClick={handleSignOut}>
+          <span>Sign out</span>
           <span className="settings-arrow">→</span>
         </button>
       </div>
-
-      <p className="demo-note">
-        Demo mode — running on sample data. Connect Supabase to make this real.
-      </p>
     </div>
   )
 }

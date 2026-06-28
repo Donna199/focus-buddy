@@ -13,7 +13,10 @@ function timeAgo(isoString) {
 const pillClass = { good: 'positive', bad: 'negative', bonus: 'bonus' }
 
 export default function LogCard({ log, showUser = true }) {
-  const user = MOCK_USERS.find((u) => u.id === log.userId)
+  // Prefer embedded user info from Supabase join; fall back to mock list for demo mode
+  const fallback = MOCK_USERS.find((u) => u.id === log.userId)
+  const userName   = log.userName   ?? fallback?.name   ?? 'Someone'
+  const userAvatar = log.userAvatar ?? fallback?.avatar ?? '?'
   const pointsLabel = log.points > 0 ? `+${log.points}` : `${log.points}`
 
   return (
@@ -21,8 +24,8 @@ export default function LogCard({ log, showUser = true }) {
       <div className="log-card-top">
         {showUser && (
           <div className="log-user">
-            <span className="avatar-sm">{user?.avatar}</span>
-            <span className="log-user-name">{user?.name}</span>
+            <span className="avatar-sm">{userAvatar}</span>
+            <span className="log-user-name">{userName}</span>
           </div>
         )}
         <span className="log-time">{timeAgo(log.createdAt)}</span>

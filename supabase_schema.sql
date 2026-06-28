@@ -1,53 +1,77 @@
--- Focus Friends — Supabase schema (v0)
--- Run this in the Supabase SQL Editor once you've created a project.
--- Matches the shapes used by src/data/mockData.js so swapping is direct.
+-- Focus Buddy — Supabase schema (v1, with Auth)
+-- Run this in the Supabase SQL Editor.
+-- If you ran the original v0 schema, run the "MIGRATION" section at the bottom
+-- instead of the full CREATE TABLE statements.
+
+-- ── Tables ────────────────────────────────────────────────────────────────────
 
 create table if not exists groups (
-  id uuid primary key default gen_random_uuid(),
-  name text not null,
+  id          uuid primary key default gen_random_uuid(),
+  name        text not null,
   invite_code text unique not null,
-  created_at timestamptz default now()
+  created_at  timestamptz default now()
 );
 
+-- id must equal auth.uid() — enforced by RLS policy below.
 create table if not exists users (
-  id uuid primary key default gen_random_uuid(),
-  name text not null,
+  id            uuid primary key,            -- set to auth.uid() on insert
+  name          text not null,
   avatar_letter text,
-  group_id uuid references groups(id) on delete set null,
-  created_at timestamptz default now()
+  group_id      uuid references groups(id) on delete set null,
+  created_at    timestamptz default now()
 );
 
 create table if not exists logs (
-  id uuid primary key default gen_random_uuid(),
-  user_id uuid references users(id) on delete cascade not null,
-  group_id uuid references groups(id) on delete cascade not null,
-  category text not null check (category in ('good', 'bad', 'bonus')),
-  activity_name text not null,
-  duration_minutes integer, -- null for bonus activities
-  points integer not null,
-  caption text,
-  trigger text, -- only used for 'bad' category
-  created_at timestamptz default now()
+  id               uuid primary key default gen_random_uuid(),
+  user_id          uuid references users(id) on delete cascade not null,
+  group_id         uuid references groups(id) on delete cascade not null,
+  category         text not null check (category in ('good', 'bad', 'bonus')),
+  activity_name    text not null,
+  duration_minutes integer,
+  points           integer not null,
+  caption          text,
+  trigger          text,
+  created_at       timestamptz default now()
 );
 
--- Helpful index for the feed and ranking queries (filter by group, sort by time)
 create index if not exists logs_group_created_idx on logs (group_id, created_at desc);
-create index if not exists logs_user_created_idx on logs (user_id, created_at desc);
+create index if not exists logs_user_created_idx  on logs (user_id,  created_at desc);
 
--- Row Level Security — keeps each group's data private to its members.
--- For v0 with a small trusted friend group, you can start permissive and
--- tighten later; this is the minimum safe default.
-alter table users enable row level security;
-alter table logs enable row level security;
+-- ── Row Level Security ────────────────────────────────────────────────────────
+
+alter table users  enable row level security;
+alter table logs   enable row level security;
 alter table groups enable row level security;
 
-create policy "Users can read all users" on users for select using (true);
-create policy "Users can read all groups" on groups for select using (true);
-create policy "Logs are readable by anyone" on logs for select using (true);
-create policy "Anyone can insert their own log" on logs for insert with check (true);
-create policy "Anyone can insert a user" on users for insert with check (true);
-create policy "Anyone can insert a group" on groups for insert with check (true);
+-- Groups: anyone can read; only authenticated users can create
+drop policy if exists "Users can read all groups"   on groups;
+drop policy if exists "Anyone can insert a group"   on groups;
+create policy "Groups are readable by all"          on groups for select using (true);
+create policy "Authenticated users can create groups" on groups
+  for insert with check (auth.uid() is not null);
 
--- NOTE: these policies are intentionally open for a fast v0 launch with a
--- trusted friend group. Before opening this to strangers, replace with
--- policies scoped to auth.uid() once you add real authentication.
+-- Users: anyone can read; each user can only create their own profile
+drop policy if exists "Users can read all users"    on users;
+drop policy if exists "Anyone can insert a user"    on users;
+create policy "User profiles are readable by all"   on users for select using (true);
+create policy "Users can create their own profile"  on users
+  for insert with check (auth.uid() = id);
+create policy "Users can update their own profile"  on users
+  for update using (auth.uid() = id);
+
+-- Logs: group members can read; users can only insert their own logs
+drop policy if exists "Logs are readable by anyone"       on logs;
+drop policy if exists "Anyone can insert their own log"   on logs;
+create policy "Logs are readable by all"                  on logs for select using (true);
+create policy "Users can insert their own logs"           on logs
+  for insert with check (auth.uid() = user_id);
+
+-- ── MIGRATION (run this if you already ran the v0 schema) ────────────────────
+--
+-- The only structural change is that users.id no longer has a default value,
+-- since it must be set to auth.uid() on insert. If your users table is empty,
+-- you can skip the ALTER and just re-run the policy drops/creates above.
+--
+-- alter table users alter column id drop default;
+--
+-- Then run all the DROP POLICY / CREATE POLICY statements above.

@@ -1,44 +1,47 @@
 import { useState, useEffect } from 'react'
 import { useLocation } from 'react-router-dom'
-import { CURRENT_USER } from '../data/mockData'
-import { getAllLogs, subscribe } from '../data/logStore'
+import { useAuth } from '../context/AuthContext'
+import { getGroupLogs } from '../lib/db'
 import LogCard from '../components/LogCard'
 
 const FILTERS = [
-  { id: 'all', label: 'All' },
-  { id: 'good', label: 'Good' },
-  { id: 'bad', label: 'Bad' },
+  { id: 'all',   label: 'All' },
+  { id: 'good',  label: 'Good' },
+  { id: 'bad',   label: 'Bad' },
   { id: 'bonus', label: 'Bonus' },
-  { id: 'mine', label: 'My logs' },
+  { id: 'mine',  label: 'My logs' },
 ]
 
 export default function Feed() {
+  const { userProfile } = useAuth()
   const location = useLocation()
+  const [logs, setLogs]     = useState([])
   const [filter, setFilter] = useState('all')
-  const [toast, setToast] = useState(null)
-  const [, forceUpdate] = useState(0)
+  const [toast, setToast]   = useState(null)
 
-  // Re-render when a new log is added during this session.
-  useEffect(() => subscribe(() => forceUpdate((n) => n + 1)), [])
-
-  // Show a success toast if we just came from logging
   useEffect(() => {
-    if (location.state?.justLogged) {
+    if (!userProfile?.group_id) return
+    getGroupLogs(userProfile.group_id).then(setLogs).catch(console.error)
+  }, [userProfile])
+
+  // Re-fetch when returning from Log screen so new entry is visible
+  useEffect(() => {
+    if (location.state?.justLogged && userProfile?.group_id) {
+      getGroupLogs(userProfile.group_id).then(setLogs).catch(console.error)
+
       const pts = location.state.points
-      setToast(pts >= 0 ? `Nice. +${pts} points logged.` : `Logged. ${pts} points — reset and climb back.`)
+      setToast(pts >= 0
+        ? `Nice. +${pts} points logged.`
+        : `Logged. ${pts} points — reset and climb back.`)
       const timer = setTimeout(() => setToast(null), 3000)
       window.history.replaceState({}, '')
       return () => clearTimeout(timer)
     }
-  }, [location.state])
+  }, [location.state, userProfile])
 
-  const sortedLogs = [...getAllLogs()].sort(
-    (a, b) => new Date(b.createdAt) - new Date(a.createdAt)
-  )
-
-  const filteredLogs = sortedLogs.filter((log) => {
-    if (filter === 'all') return true
-    if (filter === 'mine') return log.userId === CURRENT_USER.id
+  const filteredLogs = logs.filter(log => {
+    if (filter === 'all')  return true
+    if (filter === 'mine') return log.userId === userProfile?.id
     return log.category === filter
   })
 
@@ -47,7 +50,7 @@ export default function Feed() {
       <h1>Feed</h1>
 
       <div className="feed-filters">
-        {FILTERS.map((f) => (
+        {FILTERS.map(f => (
           <button
             key={f.id}
             className={`filter-pill ${filter === f.id ? 'active' : ''}`}
@@ -62,7 +65,7 @@ export default function Feed() {
         {filteredLogs.length === 0 ? (
           <p className="empty-state">No logs here yet. Be the first to log something.</p>
         ) : (
-          filteredLogs.map((log) => <LogCard key={log.id} log={log} />)
+          filteredLogs.map(log => <LogCard key={log.id} log={log} />)
         )}
       </div>
 

@@ -89,3 +89,63 @@
   color: var(--text-secondary);
   line-height: 1.4;
 }
+
+/* ── Auth form ─────────────────────────────────────────────────────────────── */
+.auth-form {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  margin-top: 24px;
+}
+
+.auth-form .field {
+  margin-bottom: 16px;
+}
+
+.auth-form .btn {
+  width: 100%;
+  margin-bottom: 6px;
+}
+
+.auth-error {
+  font-size: 13px;
+  color: var(--bad);
+  background: var(--bad-dim);
+  border-radius: var(--radius-sm);
+  padding: 10px 14px;
+  margin-bottom: 12px;
+  line-height: 1.4;
+}
+
+/* ── New group code display ────────────────────────────────────────────────── */
+.new-group-code {
+  background: var(--good-dim);
+  border: 1px solid var(--good);
+  border-radius: var(--radius-md);
+  padding: 16px 18px;
+  margin: 16px 0 8px;
+  text-align: center;
+}
+
+.new-group-code-label {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--good);
+  margin-bottom: 6px;
+}
+
+.new-group-code-value {
+  font-family: var(--font-display);
+  font-size: 24px;
+  font-weight: 700;
+  color: var(--good);
+  letter-spacing: 0.04em;
+  margin-bottom: 4px;
+}
+
+.new-group-code-hint {
+  font-size: 12px;
+  color: var(--text-secondary);
+}
