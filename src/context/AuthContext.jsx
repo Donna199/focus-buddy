@@ -8,6 +8,12 @@ export function AuthProvider({ children }) {
   const [userProfile, setUserProfile] = useState(null)
 
   useEffect(() => {
+    if (!supabase) {
+      // Env vars not configured — treat as logged out
+      setSession(null)
+      return
+    }
+
     supabase.auth.getSession().then(({ data: { session } }) => {
       setSession(session ?? null)
       if (session) loadProfile(session.user.id)
