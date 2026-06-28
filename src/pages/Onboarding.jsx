@@ -33,30 +33,30 @@ export default function Onboarding() {
   async function handleSignUp() {
     clearError()
     setLoading(true)
+    try {
+      const { data, error: authErr } = await supabase.auth.signUp({
+        email: email.trim(),
+        password,
+      })
+      if (authErr) throw new Error(authErr.message)
 
-    const { data, error: authErr } = await supabase.auth.signUp({
-      email: email.trim(),
-      password,
-    })
-    if (authErr) { setError(authErr.message); setLoading(false); return }
+      const { error: profileErr } = await supabase.from('users').insert({
+        id:            data.user.id,
+        name:          name.trim(),
+        avatar_letter: name.trim()[0]?.toUpperCase() ?? '?',
+      })
+      if (profileErr) throw new Error(profileErr.message)
 
-    // Create the public profile immediately (before email confirmation)
-    const { error: profileErr } = await supabase.from('users').insert({
-      id:            data.user.id,
-      name:          name.trim(),
-      avatar_letter: name.trim()[0]?.toUpperCase() ?? '?',
-    })
-    if (profileErr) { setError(profileErr.message); setLoading(false); return }
-
-    setLoading(false)
-
-    if (!data.session) {
-      // Email confirmation is required — ask them to verify
-      setStep('confirm')
-    } else {
-      // Email confirmation disabled — session is live, move to group setup
-      await refreshProfile()
-      setStep('group')
+      if (!data.session) {
+        setStep('confirm')
+      } else {
+        await refreshProfile()
+        setStep('group')
+      }
+    } catch (err) {
+      setError(err.message)
+    } finally {
+      setLoading(false)
     }
   }
 
@@ -64,86 +64,88 @@ export default function Onboarding() {
   async function handleSignIn() {
     clearError()
     setLoading(true)
-
-    const { error: authErr } = await supabase.auth.signInWithPassword({
-      email: email.trim(),
-      password,
-    })
-    if (authErr) { setError(authErr.message); setLoading(false); return }
-
-    setLoading(false)
-    // onAuthStateChange in AuthContext handles session + profile load;
-    // useEffect above redirects once userProfile is set
+    try {
+      const { error: authErr } = await supabase.auth.signInWithPassword({
+        email: email.trim(),
+        password,
+      })
+      if (authErr) throw new Error(authErr.message)
+      // onAuthStateChange in AuthContext handles the redirect
+    } catch (err) {
+      setError(err.message)
+      setLoading(false)
+    }
+    // Don't clear loading on success — component navigates away
   }
 
   // ── Join existing group ───────────────────────────────────────────────────
   async function handleJoinGroup() {
     clearError()
     setLoading(true)
+    try {
+      const { data: group, error: groupErr } = await supabase
+        .from('groups')
+        .select('id')
+        .eq('invite_code', code.trim().toUpperCase())
+        .maybeSingle()
 
-    const { data: group, error: groupErr } = await supabase
-      .from('groups')
-      .select('id')
-      .eq('invite_code', code.trim().toUpperCase())
-      .maybeSingle()
+      if (groupErr || !group) throw new Error('No group found with that code. Double-check and try again.')
 
-    if (groupErr || !group) {
-      setError('No group found with that code. Double-check and try again.')
+      const { data: { session: currentSession } } = await supabase.auth.getSession()
+      const uid = currentSession?.user?.id
+      if (!uid) throw new Error('Session expired. Please sign in again.')
+
+      const { error: updateErr } = await supabase
+        .from('users')
+        .update({ group_id: group.id })
+        .eq('id', uid)
+      if (updateErr) throw new Error(updateErr.message)
+
+      await refreshProfile()
+      setStep('rules')
+    } catch (err) {
+      setError(err.message)
+    } finally {
       setLoading(false)
-      return
     }
-
-    const { data: { session: currentSession } } = await supabase.auth.getSession()
-    const uid = currentSession?.user?.id
-    if (!uid) { setError('Session expired. Please sign in again.'); setLoading(false); return }
-
-    const { error: updateErr } = await supabase
-      .from('users')
-      .update({ group_id: group.id })
-      .eq('id', uid)
-
-    if (updateErr) { setError(updateErr.message); setLoading(false); return }
-
-    await refreshProfile()
-    setLoading(false)
-    setStep('rules')
   }
 
   // ── Create new group ──────────────────────────────────────────────────────
   async function handleCreateGroup() {
     clearError()
     setLoading(true)
+    try {
+      const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'
+      const suffix = Array.from({ length: 4 }, () =>
+        chars[Math.floor(Math.random() * chars.length)]
+      ).join('')
+      const inviteCode = 'SQUAD-' + suffix
 
-    // Generate a readable, collision-resistant invite code
-    const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'
-    const suffix = Array.from({ length: 4 }, () =>
-      chars[Math.floor(Math.random() * chars.length)]
-    ).join('')
-    const inviteCode = 'SQUAD-' + suffix
+      const { data: group, error: groupErr } = await supabase
+        .from('groups')
+        .insert({ name: `${name || 'My'}'s Squad`, invite_code: inviteCode })
+        .select('id, invite_code')
+        .single()
+      if (groupErr) throw new Error(groupErr.message)
 
-    const { data: group, error: groupErr } = await supabase
-      .from('groups')
-      .insert({ name: `${name || 'My'}'s Squad`, invite_code: inviteCode })
-      .select('id, invite_code')
-      .single()
+      const { data: { session: currentSession } } = await supabase.auth.getSession()
+      const uid = currentSession?.user?.id
+      if (!uid) throw new Error('Session expired. Please sign in again.')
 
-    if (groupErr) { setError(groupErr.message); setLoading(false); return }
+      const { error: updateErr } = await supabase
+        .from('users')
+        .update({ group_id: group.id })
+        .eq('id', uid)
+      if (updateErr) throw new Error(updateErr.message)
 
-    const { data: { session: currentSession } } = await supabase.auth.getSession()
-    const uid = currentSession?.user?.id
-    if (!uid) { setError('Session expired. Please sign in again.'); setLoading(false); return }
-
-    const { error: updateErr } = await supabase
-      .from('users')
-      .update({ group_id: group.id })
-      .eq('id', uid)
-
-    if (updateErr) { setError(updateErr.message); setLoading(false); return }
-
-    await refreshProfile()
-    setGroupCode(group.invite_code)
-    setLoading(false)
-    setStep('rules')
+      await refreshProfile()
+      setGroupCode(group.invite_code)
+      setStep('rules')
+    } catch (err) {
+      setError(err.message)
+    } finally {
+      setLoading(false)
+    }
   }
 
   // ── Render ────────────────────────────────────────────────────────────────
