@@ -117,6 +117,47 @@
   line-height: 1.4;
 }
 
+/* ── Google button ─────────────────────────────────────────────────────────── */
+.btn-google {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  width: 100%;
+  padding: 13px 20px;
+  border-radius: var(--radius-md);
+  background: #fff;
+  border: 1.5px solid #dadce0;
+  color: #3c4043;
+  font-family: var(--font-body);
+  font-size: 15px;
+  font-weight: 500;
+  margin-bottom: 6px;
+  transition: background 0.12s, box-shadow 0.12s;
+}
+
+.btn-google:hover {
+  background: #f8f9fa;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.15);
+}
+
+.auth-divider {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 4px 0;
+  color: var(--text-tertiary);
+  font-size: 13px;
+}
+
+.auth-divider::before,
+.auth-divider::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: var(--border);
+}
+
 /* ── New group code display ────────────────────────────────────────────────── */
 .new-group-code {
   background: var(--good-dim);

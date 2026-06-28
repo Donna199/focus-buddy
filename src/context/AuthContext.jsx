@@ -31,24 +31,53 @@ export function AuthProvider({ children }) {
   }, [])
 
   async function loadProfile(userId) {
-    const { data } = await supabase
+    const { data: existing } = await supabase
       .from('users')
       .select('*')
       .eq('id', userId)
       .maybeSingle()
 
-    if (data && !data.friend_code) {
-      const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'
-      const suffix = Array.from({ length: 4 }, () =>
-        chars[Math.floor(Math.random() * chars.length)]
-      ).join('')
-      const friendCode = 'FOCUS-' + suffix
-      await supabase.from('users').update({ friend_code: friendCode }).eq('id', userId)
-      data.friend_code = friendCode
+    if (existing) {
+      if (!existing.friend_code) {
+        const code = 'FOCUS-' + genSuffix()
+        await supabase.from('users').update({ friend_code: code }).eq('id', userId)
+        existing.friend_code = code
+      }
+      setUserProfile(existing)
+      setProfileLoaded(true)
+      return
     }
 
-    setUserProfile(data ?? null)
+    // No profile yet — auto-create for OAuth (Google) users
+    const { data: { session } } = await supabase.auth.getSession()
+    const provider = session?.user?.app_metadata?.provider
+    const meta     = session?.user?.user_metadata
+
+    if (provider === 'google' && meta) {
+      const name = (meta.full_name || meta.name || 'Friend').trim()
+      const { data: created } = await supabase
+        .from('users')
+        .insert({
+          id:            userId,
+          name,
+          avatar_letter: name[0]?.toUpperCase() ?? '?',
+          friend_code:   'FOCUS-' + genSuffix(),
+        })
+        .select()
+        .single()
+      setUserProfile(created ?? null)
+    } else {
+      setUserProfile(null)
+    }
+
     setProfileLoaded(true)
+  }
+
+  function genSuffix() {
+    const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'
+    return Array.from({ length: 4 }, () =>
+      chars[Math.floor(Math.random() * chars.length)]
+    ).join('')
   }
 
   async function refreshProfile() {
