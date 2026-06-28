@@ -1,0 +1,75 @@
+.reset-screen {
+  display: flex;
+  flex-direction: column;
+}
+
+.reset-header {
+  margin-bottom: 24px;
+}
+
+.reset-points {
+  display: inline-block;
+  margin-bottom: 16px;
+  font-size: 16px;
+  padding: 5px 14px;
+}
+
+.reset-sub {
+  color: var(--text-secondary);
+  font-size: 15px;
+  margin-top: 8px;
+}
+
+.reset-options {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-bottom: 16px;
+}
+
+.reset-option {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 18px;
+  background: var(--bg-card);
+  border: 1px solid var(--border-soft);
+  border-radius: var(--radius-md);
+  transition: border-color 0.12s, background 0.12s;
+}
+
+.reset-option:active {
+  border-color: var(--good);
+  background: var(--good-dim);
+}
+
+.reset-option-name {
+  font-weight: 500;
+  font-size: 15px;
+  color: var(--text-primary);
+}
+
+.reset-arrow {
+  color: var(--text-tertiary);
+  font-size: 18px;
+}
+
+.reset-exercise {
+  display: flex;
+  flex-direction: column;
+}
+
+.reset-exercise h1 {
+  margin: 6px 0 16px;
+}
+
+.reset-instruction {
+  font-size: 17px;
+  line-height: 1.6;
+  color: var(--text-secondary);
+  margin-bottom: 32px;
+}
+
+.reset-exercise .btn-primary {
+  margin-bottom: 8px;
+}

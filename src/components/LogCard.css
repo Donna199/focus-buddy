@@ -1,0 +1,85 @@
+.log-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border-soft);
+  border-radius: var(--radius-md);
+  padding: 14px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.log-card-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.log-user {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.avatar-sm {
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  background: var(--border);
+  color: var(--text-primary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--font-display);
+  font-weight: 600;
+  font-size: 12px;
+  flex-shrink: 0;
+}
+
+.log-user-name {
+  font-weight: 600;
+  font-size: 14px;
+  color: var(--text-primary);
+}
+
+.log-time {
+  font-size: 12px;
+  color: var(--text-tertiary);
+}
+
+.log-card-mid {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.log-activity {
+  font-weight: 500;
+  font-size: 15px;
+  color: var(--text-primary);
+}
+
+.log-duration {
+  font-size: 13px;
+  color: var(--text-secondary);
+  margin-top: 2px;
+}
+
+.log-caption {
+  font-size: 13px;
+  color: var(--text-secondary);
+  font-style: italic;
+}
+
+.log-photo {
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+  margin-top: 4px;
+}
+
+.log-photo img {
+  width: 100%;
+  max-height: 320px;
+  object-fit: cover;
+  display: block;
+}
