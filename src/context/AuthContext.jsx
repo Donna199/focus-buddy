@@ -6,23 +6,25 @@ const AuthContext = createContext(null)
 export function AuthProvider({ children }) {
   const [session, setSession] = useState(undefined) // undefined = still loading
   const [userProfile, setUserProfile] = useState(null)
+  const [profileLoaded, setProfileLoaded] = useState(false)
 
   useEffect(() => {
     if (!supabase) {
-      // Env vars not configured — treat as logged out
       setSession(null)
+      setProfileLoaded(true)
       return
     }
 
     supabase.auth.getSession().then(({ data: { session } }) => {
       setSession(session ?? null)
       if (session) loadProfile(session.user.id)
+      else setProfileLoaded(true)
     })
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       setSession(session ?? null)
       if (session) loadProfile(session.user.id)
-      else setUserProfile(null)
+      else { setUserProfile(null); setProfileLoaded(true) }
     })
 
     return () => subscription.unsubscribe()
@@ -35,6 +37,7 @@ export function AuthProvider({ children }) {
       .eq('id', userId)
       .maybeSingle()
     setUserProfile(data ?? null)
+    setProfileLoaded(true)
   }
 
   async function refreshProfile() {
@@ -43,7 +46,7 @@ export function AuthProvider({ children }) {
   }
 
   return (
-    <AuthContext.Provider value={{ session, userProfile, refreshProfile }}>
+    <AuthContext.Provider value={{ session, userProfile, profileLoaded, refreshProfile }}>
       {children}
     </AuthContext.Provider>
   )

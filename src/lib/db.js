@@ -28,17 +28,35 @@ function normalizeLog(row) {
     points:          row.points,
     caption:         row.caption,
     trigger:         row.trigger,
+    photo:           row.photo_url ?? null,
     createdAt:       row.created_at,
-    userName:        row.users?.name        ?? null,
+    userName:        row.users?.name         ?? null,
     userAvatar:      row.users?.avatar_letter ?? null,
   }
 }
 
 // ── Logs ─────────────────────────────────────────────────────────────────────
 
+export async function uploadActivityPhoto(file, userId) {
+  const ext  = file.name.split('.').pop() || 'jpg'
+  const path = `${userId}/${crypto.randomUUID()}.${ext}`
+
+  const { error: uploadErr } = await supabase.storage
+    .from('activity-photos')
+    .upload(path, file, { contentType: file.type })
+
+  if (uploadErr) throw uploadErr
+
+  const { data } = supabase.storage
+    .from('activity-photos')
+    .getPublicUrl(path)
+
+  return data.publicUrl
+}
+
 export async function insertLog({
   userId, groupId, category, activityName,
-  durationMinutes, points, caption, trigger,
+  durationMinutes, points, caption, trigger, photoUrl,
 }) {
   const { data, error } = await supabase
     .from('logs')
@@ -49,8 +67,9 @@ export async function insertLog({
       activity_name:    activityName,
       duration_minutes: durationMinutes ?? null,
       points,
-      caption:          caption  ?? null,
-      trigger:          trigger  ?? null,
+      caption:          caption   ?? null,
+      trigger:          trigger   ?? null,
+      photo_url:        photoUrl  ?? null,
     })
     .select()
     .single()

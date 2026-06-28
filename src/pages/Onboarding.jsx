@@ -5,7 +5,7 @@ import { useAuth } from '../context/AuthContext'
 
 export default function Onboarding() {
   const navigate = useNavigate()
-  const { session, userProfile, refreshProfile } = useAuth()
+  const { session, userProfile, profileLoaded, refreshProfile } = useAuth()
 
   const [step, setStep] = useState('welcome') // welcome|signup|signin|confirm|group|rules
   const [name, setName] = useState('')
@@ -24,8 +24,12 @@ export default function Onboarding() {
     } else if (session && userProfile && !userProfile.group_id) {
       setName(userProfile.name || '')
       setStep('group')
+    } else if (session && profileLoaded && !userProfile) {
+      // Signed in but no profile row — account was partially created before RLS fix
+      setError('Account setup incomplete. Please create a new account.')
+      supabase.auth.signOut()
     }
-  }, [session, userProfile, navigate])
+  }, [session, userProfile, profileLoaded, navigate, step])
 
   function clearError() { setError('') }
 

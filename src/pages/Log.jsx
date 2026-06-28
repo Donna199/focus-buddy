@@ -9,7 +9,7 @@ import {
   calculateGoodOrBadPoints,
 } from '../data/activities'
 import { useAuth } from '../context/AuthContext'
-import { insertLog, getTodayBonusPoints } from '../lib/db'
+import { insertLog, uploadActivityPhoto, getTodayBonusPoints } from '../lib/db'
 import ActivityTimer from '../components/ActivityTimer'
 import ResetPrompt from '../components/ResetPrompt'
 
@@ -29,7 +29,8 @@ export default function Log() {
   const [duration, setDuration]   = useState('')
   const [caption, setCaption]     = useState('')
   const [trigger, setTrigger]     = useState('')
-  const [photo, setPhoto]         = useState(null)
+  const [photo, setPhoto]         = useState(null)   // base64 preview
+  const [photoFile, setPhotoFile] = useState(null)   // File object for upload
   const [showReset, setShowReset] = useState(false)
   const [submittedPoints, setSubmittedPoints] = useState(0)
   const [submitting, setSubmitting] = useState(false)
@@ -80,6 +81,7 @@ export default function Log() {
     setDuration('')
     setTrigger('')
     setPhoto(null)
+    setPhotoFile(null)
   }
 
   function handleActivityChange(newId) {
@@ -100,6 +102,7 @@ export default function Log() {
   function handlePhotoChange(e) {
     const file = e.target.files?.[0]
     if (!file) return
+    setPhotoFile(file)
     const reader = new FileReader()
     reader.onload = () => setPhoto(reader.result)
     reader.readAsDataURL(file)
@@ -113,6 +116,11 @@ export default function Log() {
     setSubmitting(true)
 
     try {
+      let photoUrl
+      if (photoFile) {
+        photoUrl = await uploadActivityPhoto(photoFile, userProfile.id)
+      }
+
       await insertLog({
         userId:          userProfile.id,
         groupId:         userProfile.group_id,
@@ -120,8 +128,9 @@ export default function Log() {
         activityName:    selectedActivity.name,
         durationMinutes: category === 'bonus' ? null : Number(duration),
         points:          finalPoints,
-        caption:         caption  || undefined,
-        trigger:         trigger  || undefined,
+        caption:         caption   || undefined,
+        trigger:         trigger   || undefined,
+        photoUrl,
       })
     } catch (err) {
       console.error('Failed to save log:', err)
