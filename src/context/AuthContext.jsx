@@ -48,13 +48,13 @@ export function AuthProvider({ children }) {
       return
     }
 
-    // No profile yet — auto-create for OAuth (Google) users
+    // No profile yet — auto-create from metadata (works for Google and email users)
     const { data: { session } } = await supabase.auth.getSession()
-    const provider = session?.user?.app_metadata?.provider
-    const meta     = session?.user?.user_metadata
+    const meta = session?.user?.user_metadata
 
-    if (provider === 'google' && meta) {
-      const name = (meta.full_name || meta.name || 'Friend').trim()
+    // Auto-create profile from metadata for both Google and email users
+    const name = (meta?.full_name || meta?.name || '').trim()
+    if (name) {
       const { data: created } = await supabase
         .from('users')
         .insert({

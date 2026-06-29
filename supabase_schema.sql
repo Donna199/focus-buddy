@@ -17,6 +17,7 @@ create table if not exists users (
   id            uuid primary key,            -- set to auth.uid() on insert
   name          text not null,
   avatar_letter text,
+  friend_code   text unique,
   group_id      uuid references groups(id) on delete set null,
   created_at    timestamptz default now()
 );

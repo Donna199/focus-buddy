@@ -30,8 +30,8 @@ export default function Onboarding() {
     if (session && userProfile) {
       navigate('/', { replace: true })
     } else if (session && profileLoaded && !userProfile) {
-      setError('Account setup incomplete. Please create a new account.')
-      supabase.auth.signOut()
+      // Auth account exists but profile is missing — let them complete setup
+      setStep('setup')
     }
   }, [session, userProfile, profileLoaded, navigate])
 
@@ -63,6 +63,7 @@ export default function Onboarding() {
       const { data, error: authErr } = await supabase.auth.signUp({
         email: email.trim(),
         password,
+        options: { data: { name: name.trim() } },
       })
       if (authErr) throw new Error(authErr.message)
 
@@ -109,6 +110,35 @@ export default function Onboarding() {
       // onAuthStateChange in AuthContext handles the redirect
     } catch (err) {
       setError(err.message)
+      setLoading(false)
+    }
+  }
+
+  // ── Complete setup (recovery for accounts missing a profile) ─────────────
+  async function handleCompleteSetup() {
+    if (!supabase) { setError('App is not connected to the database.'); return }
+    clearError()
+    setLoading(true)
+    try {
+      const { data: { session: currentSession } } = await supabase.auth.getSession()
+      if (!currentSession) throw new Error('Session expired. Please sign in again.')
+
+      const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'
+      const suffix = Array.from({ length: 4 }, () =>
+        chars[Math.floor(Math.random() * chars.length)]
+      ).join('')
+
+      const { error: profileErr } = await supabase.from('users').insert({
+        id:            currentSession.user.id,
+        name:          name.trim(),
+        avatar_letter: name.trim()[0]?.toUpperCase() ?? '?',
+        friend_code:   'FOCUS-' + suffix,
+      })
+      if (profileErr) throw new Error(profileErr.message)
+      await refreshProfile()
+    } catch (err) {
+      setError(err.message)
+    } finally {
       setLoading(false)
     }
   }
@@ -245,6 +275,39 @@ export default function Onboarding() {
           </button>
           <button className="btn btn-ghost" onClick={() => { setStep('signup'); clearError() }}>
             Don't have an account? Create one
+          </button>
+        </div>
+      </div>
+    )
+  }
+
+  if (step === 'setup') {
+    return (
+      <div className="screen onboarding-screen">
+        <p className="eyebrow">Almost there</p>
+        <h1>Complete your profile</h1>
+        <p className="onboarding-sub">What should your friends call you?</p>
+
+        <div className="auth-form">
+          <div className="field">
+            <label className="field-label">Your name</label>
+            <input
+              type="text"
+              placeholder="e.g. Donna"
+              value={name}
+              onChange={e => setName(e.target.value)}
+              autoFocus
+            />
+          </div>
+
+          {error && <p className="auth-error">{error}</p>}
+
+          <button
+            className="btn btn-primary"
+            disabled={loading || !name.trim()}
+            onClick={handleCompleteSetup}
+          >
+            {loading ? 'Saving…' : 'Continue'}
           </button>
         </div>
       </div>
